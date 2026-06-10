@@ -3,91 +3,379 @@
   "source": "Strudel API reference",
   "categories": {
     "amplitude": [
-      {"name": "gain", "range": [0, 2], "default": 1, "desc": "Linear volume."},
-      {"name": "velocity", "range": [0, 1], "default": 1, "desc": "MIDI-like velocity."}
+      {
+        "name": "gain",
+        "range": [
+          0,
+          2
+        ],
+        "default": 1,
+        "desc": "Linear volume."
+      },
+      {
+        "name": "velocity",
+        "range": [
+          0,
+          1
+        ],
+        "default": 1,
+        "desc": "MIDI-like velocity."
+      }
     ],
     "panning": [
-      {"name": "pan", "range": [0, 1], "default": 0.5, "desc": "0=L, 1=R."}
+      {
+        "name": "pan",
+        "range": [
+          0,
+          1
+        ],
+        "default": 0.5,
+        "desc": "0=L, 1=R."
+      }
     ],
     "playback": [
-      {"name": "speed", "range": [-4, 4], "default": 1, "desc": "Sample playback speed; negative reverses."},
-      {"name": "begin", "range": [0, 1], "desc": "Sample start position."},
-      {"name": "end", "range": [0, 1], "desc": "Sample end position."},
-      {"name": "loop", "range": [0, 1], "desc": "0/1: loop the sample."},
-      {"name": "cut", "desc": "Cut group; same value cuts each other off."},
-      {"name": "clip", "desc": "Clip note to fraction of cycle."},
-      {"name": "ply", "desc": "Repeat each event n times."},
-      {"name": "chunk", "desc": "Apply a function to a chunk of the pattern."},
-      {"name": "striate", "desc": "Slice and reorder a sample."},
-      {"name": "bite", "desc": "Take a section of the pattern."}
+      {
+        "name": "speed",
+        "range": [
+          -4,
+          4
+        ],
+        "default": 1,
+        "desc": "Sample playback speed; negative reverses."
+      },
+      {
+        "name": "begin",
+        "range": [
+          0,
+          1
+        ],
+        "desc": "Sample start position."
+      },
+      {
+        "name": "end",
+        "range": [
+          0,
+          1
+        ],
+        "desc": "Sample end position."
+      },
+      {
+        "name": "clip",
+        "desc": "Clip note to fraction of cycle."
+      },
+      {
+        "name": "ply",
+        "desc": "Repeat each event n times."
+      },
+      {
+        "name": "chunk",
+        "desc": "Apply a function to a chunk of the pattern."
+      },
+      {
+        "name": "striate",
+        "desc": "Slice and reorder a sample."
+      },
+      {
+        "name": "bite",
+        "desc": "Take a section of the pattern."
+      }
     ],
     "filters": [
-      {"name": "lpf", "range": [20, 20000], "desc": "Low-pass cutoff Hz."},
-      {"name": "hpf", "range": [20, 20000], "desc": "High-pass cutoff Hz."},
-      {"name": "bpf", "range": [20, 20000], "desc": "Band-pass cutoff Hz."},
-      {"name": "lpq", "range": [0, 50], "desc": "Low-pass resonance."},
-      {"name": "hpq", "range": [0, 50], "desc": "High-pass resonance."},
-      {"name": "bpq", "range": [0, 50], "desc": "Band-pass resonance."},
-      {"name": "lpenv", "desc": "LPF envelope amount."},
-      {"name": "hpenv", "desc": "HPF envelope amount."},
-      {"name": "bpenv", "desc": "BPF envelope amount."}
+      {
+        "name": "lpf",
+        "range": [
+          20,
+          20000
+        ],
+        "desc": "Low-pass cutoff Hz."
+      },
+      {
+        "name": "hpf",
+        "range": [
+          20,
+          20000
+        ],
+        "desc": "High-pass cutoff Hz."
+      },
+      {
+        "name": "bpf",
+        "range": [
+          20,
+          20000
+        ],
+        "desc": "Band-pass cutoff Hz."
+      },
+      {
+        "name": "lpq",
+        "range": [
+          0,
+          50
+        ],
+        "desc": "Low-pass resonance."
+      },
+      {
+        "name": "hpq",
+        "range": [
+          0,
+          50
+        ],
+        "desc": "High-pass resonance."
+      },
+      {
+        "name": "bpq",
+        "range": [
+          0,
+          50
+        ],
+        "desc": "Band-pass resonance."
+      },
+      {
+        "name": "lpenv",
+        "desc": "LPF envelope amount."
+      },
+      {
+        "name": "hpenv",
+        "desc": "HPF envelope amount."
+      },
+      {
+        "name": "bpenv",
+        "desc": "BPF envelope amount."
+      }
     ],
     "envelope": [
-      {"name": "attack", "range": [0, 4], "desc": "Attack seconds."},
-      {"name": "decay", "range": [0, 4], "desc": "Decay seconds."},
-      {"name": "sustain", "range": [0, 1], "desc": "Sustain level."},
-      {"name": "release", "range": [0, 4], "desc": "Release seconds."},
-      {"name": "adsr", "desc": "Shorthand: \"a:d:s:r\"."}
+      {
+        "name": "attack",
+        "range": [
+          0,
+          4
+        ],
+        "desc": "Attack seconds."
+      },
+      {
+        "name": "decay",
+        "range": [
+          0,
+          4
+        ],
+        "desc": "Decay seconds."
+      },
+      {
+        "name": "sustain",
+        "range": [
+          0,
+          1
+        ],
+        "desc": "Sustain level."
+      },
+      {
+        "name": "release",
+        "range": [
+          0,
+          4
+        ],
+        "desc": "Release seconds."
+      },
+      {
+        "name": "adsr",
+        "desc": "Shorthand: \"a:d:s:r\"."
+      }
     ],
     "fx": [
-      {"name": "room", "range": [0, 1], "desc": "Reverb send."},
-      {"name": "roomsize", "range": [0, 10], "desc": "Reverb room size."},
-      {"name": "delay", "range": [0, 1], "desc": "Delay send."},
-      {"name": "delaytime", "range": [0, 4], "desc": "Delay time seconds."},
-      {"name": "delayfeedback", "range": [0, 0.95], "desc": "Delay feedback."},
-      {"name": "vowel", "values": ["a", "e", "i", "o", "u"], "desc": "Formant vowel."},
-      {"name": "crush", "range": [1, 16], "desc": "Bit-crush bits."},
-      {"name": "distort", "range": [0, 1], "desc": "Wave-shaping distortion."},
-      {"name": "coarse", "range": [1, 32], "desc": "Sample rate reduction."},
-      {"name": "shape", "range": [0, 1], "desc": "Wave-shape amount."}
+      {
+        "name": "room",
+        "range": [
+          0,
+          1
+        ],
+        "desc": "Reverb send."
+      },
+      {
+        "name": "roomsize",
+        "range": [
+          0,
+          10
+        ],
+        "desc": "Reverb room size."
+      },
+      {
+        "name": "delay",
+        "range": [
+          0,
+          1
+        ],
+        "desc": "Delay send."
+      },
+      {
+        "name": "delaytime",
+        "range": [
+          0,
+          4
+        ],
+        "desc": "Delay time seconds."
+      },
+      {
+        "name": "delayfeedback",
+        "range": [
+          0,
+          0.95
+        ],
+        "desc": "Delay feedback."
+      },
+      {
+        "name": "vowel",
+        "values": [
+          "a",
+          "e",
+          "i",
+          "o",
+          "u"
+        ],
+        "desc": "Formant vowel."
+      },
+      {
+        "name": "crush",
+        "range": [
+          1,
+          16
+        ],
+        "desc": "Bit-crush bits."
+      },
+      {
+        "name": "distort",
+        "range": [
+          0,
+          1
+        ],
+        "desc": "Wave-shaping distortion."
+      },
+      {
+        "name": "coarse",
+        "range": [
+          1,
+          32
+        ],
+        "desc": "Sample rate reduction."
+      },
+      {
+        "name": "shape",
+        "range": [
+          0,
+          1
+        ],
+        "desc": "Wave-shape amount."
+      }
     ],
     "modulation": [
-      {"name": "vib", "desc": "Vibrato rate Hz."},
-      {"name": "vibmod", "desc": "Vibrato modulation index."},
-      {"name": "tremolo", "desc": "Tremolo rate Hz."},
-      {"name": "panenv", "desc": "Pan envelope."}
+      {
+        "name": "tremolosync",
+        "range": [
+          2,
+          10
+        ],
+        "desc": "Tremolo rate Hz."
+      }
     ],
     "pitch": [
-      {"name": "note", "desc": "Pitch as note names or MIDI numbers."},
-      {"name": "n", "desc": "Sample index OR scale degree."},
-      {"name": "scale", "desc": "Apply a named scale, e.g. \"C:minor\"."},
-      {"name": "transpose", "desc": "Transpose by semitones."},
-      {"name": "octave", "desc": "Octave shift."}
+      {
+        "name": "note",
+        "desc": "Pitch as note names or MIDI numbers."
+      },
+      {
+        "name": "n",
+        "desc": "Sample index OR scale degree."
+      },
+      {
+        "name": "scale",
+        "desc": "Apply a named scale, e.g. \"C:minor\"."
+      },
+      {
+        "name": "transpose",
+        "desc": "Transpose by semitones."
+      },
+      {
+        "name": "octave",
+        "desc": "Octave shift."
+      }
     ],
     "sound_choice": [
-      {"name": "s", "desc": "Sound selector (drum/sample/synth name)."},
-      {"name": "sound", "desc": "Alias for s()."},
-      {"name": "bank", "desc": "Set drum bank, e.g. \"RolandTR909\"."}
+      {
+        "name": "s",
+        "desc": "Sound selector (drum/sample/synth name)."
+      },
+      {
+        "name": "sound",
+        "desc": "Alias for s()."
+      },
+      {
+        "name": "bank",
+        "desc": "Set drum bank, e.g. \"RolandTR909\"."
+      }
     ],
     "pattern_transforms": [
-      {"name": "fast", "desc": "Speed pattern up by factor."},
-      {"name": "slow", "desc": "Slow pattern down by factor."},
-      {"name": "rev", "desc": "Reverse the pattern."},
-      {"name": "palindrome", "desc": "Forward then reverse."},
-      {"name": "iter", "desc": "Iterate through subdivisions."},
-      {"name": "every", "desc": ".every(n, fn) apply fn on every n-th cycle."},
-      {"name": "sometimes", "desc": "50% chance to apply fn."},
-      {"name": "often", "desc": "75% chance."},
-      {"name": "rarely", "desc": "25% chance."},
-      {"name": "degrade", "desc": "Randomly drop events."},
-      {"name": "degradeBy", "desc": "Drop events with probability."},
-      {"name": "jux", "desc": "Pan-split with transformed copy."},
-      {"name": "juxBy", "desc": "Partial pan-split."},
-      {"name": "stack", "desc": "Layer patterns in parallel."},
-      {"name": "layer", "desc": "Apply list of functions in parallel."},
-      {"name": "superimpose", "desc": "Layer with a transformed copy."},
-      {"name": "struct", "desc": "Apply a binary structure pattern."},
-      {"name": "mask", "desc": "Mask events with a binary pattern."}
+      {
+        "name": "fast",
+        "desc": "Speed pattern up by factor."
+      },
+      {
+        "name": "slow",
+        "desc": "Slow pattern down by factor."
+      },
+      {
+        "name": "rev",
+        "desc": "Reverse the pattern."
+      },
+      {
+        "name": "palindrome",
+        "desc": "Forward then reverse."
+      },
+      {
+        "name": "iter",
+        "desc": "Iterate through subdivisions."
+      },
+      {
+        "name": "every",
+        "desc": ".every(n, fn) apply fn on every n-th cycle."
+      },
+      {
+        "name": "sometimes",
+        "desc": "50% chance to apply fn."
+      },
+      {
+        "name": "often",
+        "desc": "75% chance."
+      },
+      {
+        "name": "rarely",
+        "desc": "25% chance."
+      },
+      {
+        "name": "degrade",
+        "desc": "Randomly drop events."
+      },
+      {
+        "name": "degradeBy",
+        "desc": "Drop events with probability."
+      },
+      {
+        "name": "jux",
+        "desc": "Pan-split with transformed copy."
+      },
+      {
+        "name": "stack",
+        "desc": "Layer patterns in parallel."
+      },
+      {
+        "name": "layer",
+        "desc": "Apply list of functions in parallel."
+      },
+      {
+        "name": "struct",
+        "desc": "Apply a binary structure pattern."
+      },
+      {
+        "name": "mask",
+        "desc": "Mask events with a binary pattern."
+      }
     ]
   }
 }

@@ -1,10 +1,18 @@
-"""Chaos director: drives the strudel-chaos MCP server with an LLM.
+"""Chaos director: drives the strudel-chaos MCP server.
 
-Stateless loop:
+Two engines are available (select with ``--engine``):
+
+``llm``   (default) – stateless loop powered by an Ollama LLM:
   1. Read live buffer + cached knowledge resources.
   2. Ask Ollama for ONE structured Action.
   3. Translate it into a single MCP tool call.
   4. Sleep until the next tick.
+
+``rules`` – deterministic rule-based engine (no LLM required):
+  On each tick chooses 2 of 3 operation families at random:
+    • pattern_mutation  – apply a mini-notation trick (*, /, @, !, [], <>, etc.)
+    • effects_change    – add or remove chainable effects
+    • bpm_change        – nudge / introduce setcps() or setcpm()
 """
 
 from __future__ import annotations
@@ -27,6 +35,7 @@ from .ollama_client import OllamaClient, TRANSPORT_FAILURE
 from .prompts import build_system_prompt_rag, build_user_prompt
 from .rag import KnowledgeIndex
 from .mutations import enrich_buffer, extract_cps_from_buffer
+from .rule_based_chaos import RulesBasedChaosEngine
 
 
 # MCP stuff
@@ -77,7 +86,47 @@ async def _load_knowledge(client: ClientSession) -> tuple[str, str, dict, list[s
     )
 
 
-# Action dispatch
+# Rules-based tick
+
+async def _tick_rules(
+    *,
+    client: ClientSession,
+    engine: RulesBasedChaosEngine,
+) -> str | None:
+    """Run a single rules-based director tick. Returns the intent string (or None)."""
+    read = await client.call_tool("read_buffer_tool", {})
+    current = (read.content[0].text if read.content else "") or ""
+
+    if not current.strip():
+        print("[rules] empty buffer — skipping tick", file=sys.stderr)
+        return None
+
+    new_buffer, intent = engine.tick(current)
+    print(f"[rules] {intent}")
+
+    if new_buffer.strip() == current.strip():
+        print("[rules]   -> no change produced", file=sys.stderr)
+        return intent
+
+    res = await client.call_tool(
+        "write_buffer_tool",
+        {"text": new_buffer, "evaluate": True, "auto_fix": True,
+         "enforce_lint": True},
+    )
+    sc = res.structuredContent or {}
+    if sc.get("ok"):
+        subs = sc.get("substitutions") or []
+        print(
+            f"[rules]   -> wrote {sc.get('length', 0)} chars"
+            f"{f', auto-fixed {len(subs)} tokens' if subs else ''}"
+        )
+    else:
+        errs = sc.get("lint_errors") or [sc.get("error")]
+        print(f"[rules]   -> REJECTED: {errs}", file=sys.stderr)
+    return intent
+
+
+# LLM Action dispatch
 
 async def _apply_action(
     client: ClientSession,
@@ -190,37 +239,67 @@ async def run_director(
     client: ClientSession | None = None,
     max_ticks: int | None = None,
     rag_dir: str | Path | None = Path(".chroma"),
+    engine: str = "llm",
 ) -> None:
-    """Run the director loop until cancelled."""
+    """Run the director loop until cancelled.
+
+    Args:
+        engine: ``"llm"`` (default) – use the Ollama LLM on every tick.
+                ``"rules"``         – use the deterministic rule-based engine
+                                      (no LLM required; ``model`` is ignored).
+    """
+    if engine not in ("llm", "rules"):
+        raise ValueError(f"engine must be 'llm' or 'rules', got {engine!r}")
+
     if server_cmd is None:
         server_cmd = [sys.executable, "-m", "src.app"]
 
     rag_index = KnowledgeIndex(persist_dir=rag_dir)
 
     owns_ollama = ollama is None
-    if ollama is None:
+    if engine == "llm" and ollama is None:
         if model is None:
-            raise ValueError("model is required when ollama client is not provided")
+            raise ValueError("model is required when engine='llm' and ollama client is not provided")
         ollama = OllamaClient(model=model)
 
     async def _loop(session: ClientSession) -> None:
         syntax, patterns, sounds, banks, effects = await _load_knowledge(session)
 
-        if not rag_index.is_built():
-            n = rag_index.build(
-                syntax_md=syntax,
-                patterns_md=patterns,
-                sounds=sounds,
-                banks=banks,
-                effects=effects,
+        # Build the rules engine if requested (loads full effects JSON for ranges)
+        rules_engine: RulesBasedChaosEngine | None = None
+        if engine == "rules":
+            effects_json = await _read_json_resource(session, "strudel://effects")
+            all_sounds: list[str] = []
+            if isinstance(sounds, dict):
+                for v in sounds.values():
+                    if isinstance(v, list):
+                        all_sounds.extend(str(s) for s in v)
+            rules_engine = RulesBasedChaosEngine(
+                sounds=all_sounds,
+                effects_knowledge=effects_json,
             )
-            print(f"[director] built knowledge index: {n} chunks", file=sys.stderr)
-        else:
             print(
-                f"[director] reusing knowledge index "
-                f"({rag_index._col.count()} chunks)",
+                f"[director] rules engine ready "
+                f"({len(all_sounds)} sounds loaded)",
                 file=sys.stderr,
             )
+
+        if engine == "llm":
+            if not rag_index.is_built():
+                n = rag_index.build(
+                    syntax_md=syntax,
+                    patterns_md=patterns,
+                    sounds=sounds,
+                    banks=banks,
+                    effects=effects,
+                )
+                print(f"[director] built knowledge index: {n} chunks", file=sys.stderr)
+            else:
+                print(
+                    f"[director] reusing knowledge index "
+                    f"({rag_index._col.count()} chunks)",
+                    file=sys.stderr,
+                )
 
         stop = asyncio.Event()
         loop = asyncio.get_running_loop()
@@ -233,12 +312,18 @@ async def run_director(
         last_intent: str | None = None
         ticks = 0
         while not stop.is_set():
-            last_intent = await _tick(
-                client=session,
-                ollama=ollama,
-                rag_index=rag_index,
-                last_intent=last_intent,
-            )
+            if engine == "rules" and rules_engine is not None:
+                last_intent = await _tick_rules(
+                    client=session,
+                    engine=rules_engine,
+                )
+            else:
+                last_intent = await _tick(
+                    client=session,
+                    ollama=ollama,
+                    rag_index=rag_index,
+                    last_intent=last_intent,
+                )
             ticks += 1
             if max_ticks is not None and ticks >= max_ticks:
                 return
@@ -262,10 +347,18 @@ def main() -> None:
     import argparse
 
     ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument(
+        "--engine",
+        choices=("llm", "rules"),
+        default=os.environ.get("CHAOS_ENGINE", "llm"),
+        help="Chaos engine to use: 'llm' (default, requires Ollama) or "
+             "'rules' (deterministic rule-based, no LLM needed). "
+             "Can also be set via the CHAOS_ENGINE env var.",
+    )
     ap.add_argument("--model", default=os.environ.get("OLLAMA_MODEL",
                                                        "qwen3.5:0.8b"))
     ap.add_argument("--interval", type=float, default=5.0,
-                    help="Seconds between director ticks (default: 8).")
+                    help="Seconds between director ticks (default: 5).")
     ap.add_argument("--rag-dir", default=".chroma",
                     help="Directory for the ChromaDB knowledge index "
                          "(default: .chroma). Pass empty string for in-memory.")
@@ -282,6 +375,7 @@ def main() -> None:
             interval=args.interval,
             server_cmd=server_cmd,
             rag_dir=rag_dir,
+            engine=args.engine,
         ))
     except KeyboardInterrupt:
         pass

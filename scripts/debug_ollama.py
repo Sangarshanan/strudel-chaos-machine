@@ -2,7 +2,7 @@
 Standalone debug script for OllamaClient.
 
 Usage:
-    python debug_ollama.py --model gemma4:latest
+    python debug_ollama.py --model gemma4:e2b-mlx-bf16
 """
 
 from __future__ import annotations
@@ -162,8 +162,8 @@ def show_schema() -> None:
 async def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--model", default="gemma4:latest",
-                    help="Ollama model tag to test (default: gemma4:latest)")
+    ap.add_argument("--model", default="gemma4:e2b-mlx-bf16",
+                    help="Ollama model tag to test (default: gemma4:e2b-mlx-bf16)")
     ap.add_argument("--raw", action="store_true",
                     help="Run raw ping only (skip schema chat)")
     ap.add_argument("--schema-only", action="store_true",
