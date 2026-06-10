@@ -1,10 +1,8 @@
-# The Code Writes Back: Livecoding with an Adversarial AI Agent
+# Strudel Chaos Machine
 
 This project aims to create computational performance as a site of conflict rather than control. Challenging expectations that treat artificial intelligence as an obedient tool or cooperative collaborator, this performance introduces an adversarial agent that actively interferes with the act of live coding. As the performer live codes music, the AI agent simultaneously rewrites that code, injects competing logic, and destabilizes timing and structure. The resulting performance is not a harmonious co-creation, but a high-stakes negotiation and adapting to changes made in real time. By making the underlying code inherently unstable, this work interrogates the limits of human agency, the fragility of control, and the aesthetic potential of systemic friction.
 
-This led to the creation of **Strudel Chaos Machine**
-
-An MCP server that exposes [Strudel.cc](https://strudel.cc) as a surface to induce chaos. Tools read/write the CodeMirror buffer, validate against a strudel sound catalog and trigger sound playback. Pair it with the bundled `agents.chaos_director` to let a local Ollama model drive the mutations on its own, resulting in (un)expected chaos that the user now needs to work with while performing.
+The result is an MCP server that exposes [Strudel.cc](https://strudel.cc) as a surface to induce chaos. Tools read/write the code buffer, validate against a strudel sound catalog and trigger sound playback. Pair it with the bundled `agents.chaos_director` to let a local Ollama model drive the mutations on its own, resulting in (un)expected chaos that the user now needs to work with while performing.
 
 ## Run locally
 
