@@ -329,14 +329,16 @@ _PATTERN_RE = re.compile(
 )
 
 
-def _sounds_for_chain(buffer: str, chain_start: int, sounds: list[str]) -> list[str]:
-    """Return a bank-filtered sound list when a .bank() call exists in the chain.
+def _sounds_for_chain(
+    buffer: str, chain_start: int, sounds: list[str]
+) -> tuple[list[str], bool]:
+    """Return (sound_list, bank_active) for the expression ending at chain_start.
 
     Walks the chained method calls immediately following chain_start.  If a
-    ``.bank("X")`` call is present the returned list is restricted to entries
-    in *sounds* whose prefix matches the normalised bank name (e.g.
-    ``"RolandTR909"`` → ``"rolandtr909_"``).  Falls back to *sounds* when no
-    bank is found or when the filter yields nothing.
+    ``.bank("X")`` call is present the returned list contains the **bare** voice
+    names for that bank (e.g. ``"rolandtr909_bd"`` → ``"bd"``), so they can be
+    dropped directly into a pattern that already carries the ``.bank()`` context.
+    Returns ``(sounds, False)`` when no bank is found or the filter is empty.
 
     Note: ``_CHAIN_CALL_RE`` is defined later in the file but that is fine—
     this function is only *called* at runtime, after the full module is loaded.
@@ -353,14 +355,16 @@ def _sounds_for_chain(buffer: str, chain_start: int, sounds: list[str]) -> list[
                 prefix = re.sub(r'[^a-z0-9]', '', raw.lower()) + '_'
                 filtered = [s for s in sounds if s.startswith(prefix)]
                 if filtered:
+                    # Strip the bank prefix so tokens are bare ("bd", "sd", ...)
+                    bare = [s[len(prefix):] for s in filtered]
                     log.debug(
-                        "[mutate_pattern] bank '%s' detected — restricting sound pool "
-                        "to %d sounds (prefix '%s')",
-                        raw, len(filtered), prefix,
+                        "[mutate_pattern] bank '%s' detected — %d bare sounds available "
+                        "(prefix '%s')",
+                        raw, len(bare), prefix,
                     )
-                    return filtered
+                    return bare, True
         offset = cm.end()
-    return sounds
+    return sounds, False
 
 
 def mutate_pattern(buffer: str, sounds: list[str]) -> tuple[str, str]:
@@ -398,7 +402,8 @@ def mutate_pattern(buffer: str, sounds: list[str]) -> tuple[str, str]:
     log.debug("[mutate_pattern] tokens before op: %s", tokens)
 
     # Restrict the sound pool to the active bank when .bank("X") is chained.
-    effective_sounds = _sounds_for_chain(buffer, match.end(), sounds)
+    # effective_sounds contains bare names ("bd", "sd") when bank_active is True.
+    effective_sounds, bank_active = _sounds_for_chain(buffer, match.end(), sounds)
 
     # ── Op pool filtering: suppress additive ops once caps are reached ────────
     n_voices = len(voices)
@@ -440,6 +445,33 @@ def mutate_pattern(buffer: str, sounds: list[str]) -> tuple[str, str]:
             parallel_addition = t[len("__PARALLEL__"):]
         else:
             filtered_tokens.append(t)
+
+    # ── Bank sound swap: opportunistically replace a token from the same bank ──
+    # After any successful op, if a bank is active, swap one sound atom for a
+    # different bare sound from the same bank.  Only plain atoms are eligible
+    # (not bracket groups, not modifier-only tokens).
+    _ATOM_RE = re.compile(r'^[A-Za-z0-9]')
+    if bank_active and effective_sounds:
+        swap_candidates = [
+            k for k, t in enumerate(filtered_tokens)
+            if _ATOM_RE.match(t) and t.rstrip('?') in effective_sounds
+        ]
+        if swap_candidates:
+            idx = random.choice(swap_candidates)
+            old_tok = filtered_tokens[idx]
+            bare_old = old_tok.rstrip('?')  # keep ? suffix if present
+            alternatives = [s for s in effective_sounds if s != bare_old]
+            if alternatives:
+                new_sound = random.choice(alternatives)
+                # Preserve trailing ? if the original token had one
+                new_tok = new_sound + ('?' if old_tok.endswith('?') else '')
+                filtered_tokens = filtered_tokens[:]
+                filtered_tokens[idx] = new_tok
+                description += f" + bank swap {old_tok}→{new_tok}"
+                log.debug(
+                    "[mutate_pattern] bank sound swap: %s → %s",
+                    old_tok, new_tok,
+                )
 
     new_primary = _untokenize(filtered_tokens)
     all_voices = [new_primary] + extra_voices
