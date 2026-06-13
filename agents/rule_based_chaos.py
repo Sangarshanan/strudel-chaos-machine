@@ -36,34 +36,24 @@ _NOTES = ["c", "d", "e", "f", "g", "a", "b", "eb", "bb", "db", "gb", "ab"]
 
 def _tokenize(pattern: str) -> list[str]:
     """Split a mini-notation string on spaces, keeping bracket groups intact.
-
-    A closing bracket only ends the *current token* when depth returns to 0
-    AND the current token started with a bracket character (i.e. the bracket
-    was the root opener, not an embedded suffix in an atom like `bd*3`).
+    
+    Modifiers (like *2, @3) and euclidean params (like (3,8)) remain attached
+    to their root tokens.
     """
     tokens: list[str] = []
     depth = 0
     current: list[str] = []
-    root_is_bracket = False  # True when the token's very first char was a bracket
     for ch in pattern:
         if ch in "([<":
-            if depth == 0:
-                root_is_bracket = (not current)  # first char of this token?
             depth += 1
             current.append(ch)
         elif ch in ")]>":
             depth -= 1
             current.append(ch)
-            if depth == 0 and root_is_bracket:
-                # Only flush when the bracket that closes is the root opener.
-                tokens.append("".join(current))
-                current = []
-                root_is_bracket = False
         elif ch == " " and depth == 0:
             if current:
                 tokens.append("".join(current))
                 current = []
-                root_is_bracket = False
         else:
             current.append(ch)
     if current:
@@ -325,7 +315,7 @@ def _owning_function(buffer: str, edit_offset: int) -> str:
 # Matches note("..."), s("..."), sound("...") – captures function name and quoted arg
 _PATTERN_RE = re.compile(
     r'(note|s|sound)\s*\(\s*(["\'])([^"\']*?)\2\s*\)',
-    re.DOTALL,
+    re.DOTALL | re.IGNORECASE,
 )
 
 
@@ -494,7 +484,9 @@ def mutate_pattern(buffer: str, sounds: list[str]) -> tuple[str, str]:
 _NON_CHAINABLE = {
     "note", "s", "sound", "fast", "slow", "rev", "palindrome", "iter",
     "every", "sometimes", "often", "rarely", "stack", "cat", "seq",
-    "chunk", "ply", "bite", "layer"
+    "chunk", "ply", "bite", "layer", "degradeBy", "jux",
+    "struct", "mask", "n", "scale", "transpose", "octave", "bank",
+    "striate", "clip"
 }
 
 _FALLBACK_EFFECTS: list[dict] = [
@@ -527,6 +519,8 @@ def _flatten_effects(effects_knowledge: list | dict) -> list[dict]:
 
 def _random_effect_value(effect: dict) -> str:
     """Generate a random parameter value respecting the effect's range or values."""
+    if effect.get("name", "").lower() == "degrade":
+        return ""
     if "values" in effect:
         return f'"{random.choice(effect["values"])}"'
     if "range" in effect:
@@ -543,7 +537,7 @@ _CHAIN_CALL_RE = re.compile(r'\.([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\)')
 # (?<!\w)       – not preceded by a word char (avoids matching mid-identifier)
 # (?!\w)        – the function name must NOT be followed by more word chars,
 #                 so 's(' matches but 'setcps(' does not.
-_FUNC_CALL_RE = re.compile(r'(?<!\w)(?:note|sound|s|n)(?!\w)\s*\([^)]*(?:\([^)]*\)[^)]*)*\)')
+_FUNC_CALL_RE = re.compile(r'(?<!\w)(?:note|sound|s|n)(?!\w)\s*\([^)]*(?:\([^)]*\)[^)]*)*\)', re.IGNORECASE)
 
 
 def change_effects(buffer: str, effects_knowledge: list | dict) -> tuple[str, str]:
@@ -602,11 +596,11 @@ def change_effects(buffer: str, effects_knowledge: list | dict) -> tuple[str, st
             return buffer, "no effects to modify"
 
         name, old_val, abs_start, abs_end = random.choice(existing)
-        existing_names = {e[0] for e in existing}
+        existing_names = {e[0].lower() for e in existing}
 
         # 50 % chance: swap for a different effect
         if random.random() < 0.5:
-            candidates = [e for e in flat if e["name"] not in existing_names]
+            candidates = [e for e in flat if e["name"].lower() not in existing_names]
             if candidates:
                 new_eff = random.choice(candidates)
                 new_val = _random_effect_value(new_eff)
@@ -619,7 +613,7 @@ def change_effects(buffer: str, effects_knowledge: list | dict) -> tuple[str, st
                 return new_buffer, f"replaced .{name}({old_val}) -> {new_call}"
 
         # Re-randomise value of the chosen effect
-        spec = next((e for e in flat if e["name"] == name), None)
+        spec = next((e for e in flat if e["name"].lower() == name.lower()), None)
         new_val = _random_effect_value(spec) if spec else old_val
         new_call = f".{name}({new_val})"
         new_buffer = buffer[:abs_start] + new_call + buffer[abs_end:]
@@ -637,8 +631,8 @@ def change_effects(buffer: str, effects_knowledge: list | dict) -> tuple[str, st
         return new_buffer, f"removed effect .{name}({val})"
 
     # ── Below cap: add one new effect ────────────────────────────────────────
-    existing_names = {e[0] for e in existing}
-    available = [e for e in flat if e["name"] not in existing_names]
+    existing_names = {e[0].lower() for e in existing}
+    available = [e for e in flat if e["name"].lower() not in existing_names]
     if not available:
         log.debug("[change_effects] all known effects already present — nothing to add")
         return buffer, "no new effects to add"
@@ -662,7 +656,7 @@ _STRUDEL_BANKS: list[str] = [
 ]
 
 # Matches .bank("BankName") or .bank('BankName')
-_BANK_RE = re.compile(r'\.bank\((["\'])([A-Za-z0-9_]+)\1\)')
+_BANK_RE = re.compile(r'\.bank\((["\'])([A-Za-z0-9_]+)\1\)', re.IGNORECASE)
 
 
 def change_bank(buffer: str) -> tuple[str, str]:
@@ -677,10 +671,10 @@ def change_bank(buffer: str) -> tuple[str, str]:
 
     match = random.choice(matches)
     quote = match.group(1)
-    current_bank = match.group(2)
+    current_bank = match.group(2).lower()
     owner = _owning_function(buffer, match.start())
 
-    alternatives = [b for b in _STRUDEL_BANKS if b != current_bank]
+    alternatives = [b for b in _STRUDEL_BANKS if b.lower() != current_bank]
     if not alternatives:
         log.debug("[change_bank] no alternative banks available")
         return buffer, "no alternative bank"
@@ -710,7 +704,7 @@ _SCALE_MODES: list[str] = [
 ]
 
 # Matches .scale("Root:mode") or .scale('Root:mode')
-_SCALE_RE = re.compile(r'\.scale\((["\'])([A-Za-z#b]+):([^"\']*)\1\)')
+_SCALE_RE = re.compile(r'\.scale\((["\'])([A-Za-z#b]+):([^"\']*)\1\)', re.IGNORECASE)
 
 
 def change_scale(buffer: str) -> tuple[str, str]:
@@ -725,12 +719,12 @@ def change_scale(buffer: str) -> tuple[str, str]:
 
     match = random.choice(matches)
     quote = match.group(1)
-    current_root = match.group(2)
-    current_mode = match.group(3).strip()
+    current_root = match.group(2).lower()
+    current_mode = match.group(3).strip().lower()
     owner = _owning_function(buffer, match.start())
 
-    new_root = random.choice([r for r in _SCALE_ROOTS if r != current_root])
-    new_mode = random.choice([m for m in _SCALE_MODES if m != current_mode])
+    new_root = random.choice([r for r in _SCALE_ROOTS if r.lower() != current_root])
+    new_mode = random.choice([m for m in _SCALE_MODES if m.lower() != current_mode])
     new_call = f".scale({quote}{new_root}:{new_mode}{quote})"
     new_buffer = buffer[:match.start()] + new_call + buffer[match.end():]
     log.debug(
@@ -751,14 +745,14 @@ def change_bpm(buffer: str) -> tuple[str, str]:
 
     Returns (new_buffer, intent_description).
     """
-    cpm_match = re.search(r'setcpm\(([0-9.]+)\)', buffer)
-    cps_match = re.search(r'setcps\(([0-9.]+)\)', buffer)
+    cpm_match = re.search(r'setcpm\(([0-9.]+)\)', buffer, re.IGNORECASE)
+    cps_match = re.search(r'setcps\(([0-9.]+)\)', buffer, re.IGNORECASE)
 
     if cpm_match:
         current = float(cpm_match.group(1))
         factor = random.uniform(0.70, 1.30)
         new_val = round(max(30.0, min(240.0, current * factor)), 1)
-        new_buffer = re.sub(r'setcpm\([0-9.]+\)', f'setcpm({new_val})', buffer)
+        new_buffer = re.sub(r'setcpm\([0-9.]+\)', f'setcpm({new_val})', buffer, flags=re.IGNORECASE)
         log.debug("[change_bpm] setcpm matched: %s → %s (factor %.3f)", current, new_val, factor)
         return new_buffer, f"setcpm {current} → {new_val}"
 
@@ -766,7 +760,7 @@ def change_bpm(buffer: str) -> tuple[str, str]:
         current = float(cps_match.group(1))
         factor = random.uniform(0.70, 1.30)
         new_val = round(max(0.3, min(3.0, current * factor)), 2)
-        new_buffer = re.sub(r'setcps\([0-9.]+\)', f'setcps({new_val})', buffer)
+        new_buffer = re.sub(r'setcps\([0-9.]+\)', f'setcps({new_val})', buffer, flags=re.IGNORECASE)
         log.debug("[change_bpm] setcps matched: %s → %s (factor %.3f)", current, new_val, factor)
         return new_buffer, f"setcps {current} → {new_val}"
 
