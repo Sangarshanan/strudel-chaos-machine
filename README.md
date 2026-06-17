@@ -23,9 +23,8 @@ playwright install chromium
 
 ```bash
 # pull a model first if you haven't, use any model.
-ollama pull <model_name>
-
-python -m agents --model <model_name>
+ollama pull gemma4:e2b-mlx-bf16 # use any model (obv)
+python -m agents --model gemma4:e2b-mlx-bf16
 ```
 
 Rule based agent
