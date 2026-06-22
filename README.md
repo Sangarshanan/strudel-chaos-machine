@@ -7,7 +7,6 @@ This project aims to create computational performance as a site of conflict rath
 ](https://github.com/user-attachments/assets/6cf91c53-381a-4299-b440-be045a1763bb
 )
 
-The result is an MCP server that exposes [Strudel.cc](https://strudel.cc) as a surface to induce chaos. Tools read/write the code buffer, validate against a strudel sound catalog and trigger sound playback. Pair it with the bundled `agents.chaos_director` to let a local Ollama model drive the mutations on its own, resulting in (un)expected chaos that the user now needs to work with while performing.
 
 ## Run locally
 
