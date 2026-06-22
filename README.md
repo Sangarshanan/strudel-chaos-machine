@@ -8,7 +8,7 @@ This project aims to create computational performance as a site of conflict rath
 )
 
 
-## Run locally
+## Run Locally
 
 **Install dependencies**
 
